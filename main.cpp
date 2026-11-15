@@ -35,9 +35,9 @@ struct Op
     int value;
 };
 
-string file_name(const string &set, int threads, int part)
+string file_name(const string &set)
 {
-    return TESTS_DIR + "/" + set + "_" + to_string(threads) + "threads_" + to_string(part) + ".txt";
+    return TESTS_DIR + "/" + set + ".txt";
 }
 
 void generate_file(const string &name, const int freq[], int count, mt19937 &gen)
@@ -57,24 +57,16 @@ void generate_file(const string &name, const int freq[], int count, mt19937 &gen
     }
 }
 
-//3 sets (a, b, c) * (1 + 2 + 3) = 18 files
+//3 files (a, b, c), TOTAL_OPS operations each
 void generate_all_files(const string sets[], const int *freqs[])
 {
     filesystem::create_directory(TESTS_DIR);
     mt19937 gen{random_device()()};
-    int files = 0;
     for (int s = 0; s < 3; s++)
     {
-        for (int threads = 1; threads <= 3; threads++)
-        {
-            for (int part = 0; part < threads; part++)
-            {
-                generate_file(file_name(sets[s], threads, part), freqs[s], TOTAL_OPS / threads, gen);
-                files++;
-            }
-        }
+        generate_file(file_name(sets[s]), freqs[s], TOTAL_OPS, gen);
     }
-    cout << "Generated " << files << " test files in " << filesystem::absolute(TESTS_DIR).string() << "\n";
+    cout << "Generated 3 test files in " << filesystem::absolute(TESTS_DIR).string() << "\n";
 }
 
 vector<Op> read_file(const string &name)
@@ -149,14 +141,18 @@ int main()
     cout << "a - frequencies from the task, b - equal frequencies, c - very different frequencies\n\n";
     cout << fixed << setprecision(2);
 
-    for (int s = 0; s < 3; s++)
+        for (int s = 0; s < 3; s++)
     {
+        vector<Op> all_ops = read_file(file_name(sets[s]));
+
         for (int threads = 1; threads <= 3; threads++)
         {
+            int part_size = TOTAL_OPS / threads;
             vector<vector<Op>> ops_per_thread;
             for (int part = 0; part < threads; part++)
-                ops_per_thread.push_back(read_file(file_name(sets[s], threads, part)));
-
+            {
+                ops_per_thread.push_back(vector<Op>(all_ops.begin() + part * part_size, all_ops.begin() + (part + 1) * part_size));
+            }
             cout << sets[s] << ", " << threads << " thread(s): ";
             double total = 0;
             for (int r = 0; r < RUNS; r++)
